@@ -82,7 +82,7 @@ def qk_steps(G, mode):
 QK_MAN, VO_MAN = os.environ.get("QK_MAN", "none"), os.environ.get("VO_MAN", "none")  # manifold for q,k / v,o after each Muon step
 MAN_SCALE = float(os.environ.get("MAN_SCALE", 1))   # manifold size = MAN_SCALE x the matrix's init Frobenius norm
 QK_MULT = float(os.environ.get("QK_MULT", 1)); KV_MULT = float(os.environ.get("KV_MULT", 1))   # KV_MULT: extra Muon lr x for k,v (GQA shape tests)        # Muon lr multiplier for q,k only
-LAYER_MULT = [float(v) for v in os.environ.get("LAYER_MULT", "1,1").split(",")]   # Muon lr multiplier per layer (layer 0, layer 1)
+LAYER_MULT = [float(v) for v in os.environ.get("LAYER_MULT", ",".join(["1"] * suite.NL)).split(",")]   # Muon lr multiplier per layer (layer 0, layer 1)
 VO_MULT, MLP_MULT = float(os.environ.get("VO_MULT", 1)), float(os.environ.get("MLP_MULT", 1))         # Muon lr multipliers: v,o / MLP or experts
 ROUTER_MULT, EMB_MULT = float(os.environ.get("ROUTER_MULT", 1)), float(os.environ.get("EMB_MULT", 1))  # AdamW lr multipliers: MoE router / embedding + output head
 EMB_B1 = float(os.environ.get("EMB_B1", 0.9))          # Adam beta1 for embedding + head
@@ -192,7 +192,7 @@ def head_mod(st, u, grads, i, lr, W=None):
 
 def run(mode, seed=0, steps=600, lr=0.03, every=50, bs=64, init=None):
     torch.manual_seed(seed); model = init if init is not None else suite.Model()  # init: continue training a given model
-    names = [(l, n) for l in range(2) for n in suite.MATS]
+    names = [(l, n) for l in range(suite.NL) for n in suite.MATS]
     for pn, p in model.named_parameters():
         if "router" in pn: p.lr_mult = ROUTER_MULT
         elif pn.startswith(("ve.", "ke.", "qe.", "re.", "ge.", "bg.")): p.lr_mult = VE_MULT; p.io = "ve"
@@ -278,7 +278,7 @@ def run(mode, seed=0, steps=600, lr=0.03, every=50, bs=64, init=None):
                     st.update(zip(keys, S))
             if FUSE:                                                             # FUSE: Muon on one fused matrix (e.g. qkv as in nanoGPT c_attn), split back; FUSE_SCALE=keller -> x sqrt(rows/cols)
                 for grp in FUSE.split(","):
-                    for l in range(2):
+                    for l in range(suite.NL):
                         ks = [(l, k) for k in grp.split("+")]; G = torch.cat([u[k] for k in ks], -2); S = msign(G) if G.ndim == 3 else msign(G[None])[0]
                         sc = max(1, G.shape[-2] / G.shape[-1]) ** 0.5 if FUSE_SCALE == "keller" else float(FUSE_SCALE)
                         for k, part in zip(ks, S.split([u[k].shape[-2] for k in ks], -2)): st[k] = part * sc

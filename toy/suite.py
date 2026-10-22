@@ -30,6 +30,7 @@ KANNEAL = int(os.environ.get("KANNEAL", 0))   # top-k goes linearly from all exp
 ROUTE_PREV, ROUTE_X0 = os.environ.get("ROUTE_PREV", "0") == "1", os.environ.get("ROUTE_X0", "0") == "1"
 ATTN_SCALE = float(os.environ.get("ATTN_SCALE", 1))   # attention logits x this (after QK-norm the logits are small)
 V, D, T = 64, int(os.environ.get("WIDTH", 64)), 32   # WIDTH: model width (default 64); MLP and expert sizes scale with it
+NL = int(os.environ.get("LAYERS", 2))                 # LAYERS: number of transformer layers (default 2)
 H = int(os.environ.get("HEADS", "4")); KVH = int(os.environ.get("KV_HEADS", 0)) or H   # KV_HEADS < HEADS: grouped-query attention (k,v heads shared)  # attention heads; width stays 64, so more heads = smaller heads
 MULT = {k: float(v) for k, v in (kv.split("=") for kv in os.environ.get("MULT", "").split(",") if kv)}  # lr multiplier per matrix kind, e.g. MULT=q=2,k=2
 ROPE = os.environ.get("ROPE", "1") == "1"  # RoPE on q,k (default); ROPE=0 = learned position table (older numbers)
@@ -40,7 +41,7 @@ MATS = ("q", "k", "v", "o", "gate", "up", "down") if SWIGLU else ("q", "k", "v",
 ATTN_GATE = os.environ.get("ATTN_GATE", "0") == "1"   # sigmoid gate on the attention output, from the block input (Qwen gated attention)
 VE = os.environ.get("VE", "0") == "1"                 # value embeddings: each layer adds its own token table to v
 VE_SHARE = os.environ.get("VE_SHARE", "0") == "1"     # control: v gets the input embedding itself (no new parameters)
-VE_LAYERS = [int(i) for i in os.environ.get("VE_LAYERS", "0,1").split(",")]   # which layers get value embeddings
+VE_LAYERS = [int(i) for i in os.environ.get("VE_LAYERS", ",".join(map(str, range(NL)))).split(",")]   # which layers get value embeddings
 SHARED = os.environ.get("SHARED", "0") == "1"         # MoE: one extra expert every token always uses (DeepSeek shared expert)
 AG_RANK = int(os.environ.get("AG_RANK", 0))
 if ATTN_GATE: MATS = MATS + ("ag",)
@@ -202,7 +203,7 @@ class Model(nn.Module):
         super().__init__()
         s.emb = nn.Embedding(V, D)
         if not ROPE: s.pos = nn.Parameter(torch.randn(T, D) * 0.1)
-        s.layers = nn.ModuleList([Layer(), Layer()])
+        s.layers = nn.ModuleList([Layer() for _ in range(NL)])
         s.norm, s.head = nn.RMSNorm(D), nn.Linear(D, V, bias=False)
         s.eg = nn.ModuleDict({str(i): Engram(i) for i in ENGRAM}); s.eg_off = False
         with torch.no_grad():
@@ -315,7 +316,7 @@ def qk_step(u, mode):
 
 def run(task, mode, seed=0, steps=300, lr=0.03, every=10):
     torch.manual_seed(seed); model = Model()
-    names = [(l, n) for l in range(2) for n in MATS]
+    names = [(l, n) for l in range(NL) for n in MATS]
     mats = [getattr(model.layers[l], n).weight for l, n in names]; ids = {id(p) for p in mats}
     alr, fast = float(os.environ.get("ADAM_LR", "0.01")), [w for w in os.environ.get("ADAM2", "").split(",") if w]  # ADAM2=pos,emb: those Adam params get 2x lr
     rest = [(n, p) for n, p in model.named_parameters() if id(p) not in ids]

@@ -4,24 +4,6 @@
 
 ![Value embedding with context-chosen rows vs the value matrix](main_result.png)
 
-## Contents
-
-- [The core idea](#the-core-idea)
-- [What I changed](#what-i-changed)
-  - [Result](#result)
-  - [Why it works: choosing the row matters](#why-it-works-choosing-the-row-matters)
-  - [With a mixture of experts](#with-a-mixture-of-experts)
-- [What each slot learns](#what-each-slot-learns)
-  - [First layer vs second layer](#first-layer-vs-second-layer)
-- [Where it stops working](#where-it-stops-working)
-  - [Wider models](#wider-models)
-  - [Is it about room for facts?](#is-it-about-room-for-facts)
-  - [A second gain: sorting and lookup](#a-second-gain-sorting-and-lookup)
-  - [Guess for large language models](#guess-for-large-language-models)
-- [Is this new?](#is-this-new)
-- [Setup](#setup)
-- [More detail](#more-detail)
-
 ## The core idea
 
 When a token looks back at earlier tokens, attention copies a vector from each earlier token. That vector is called the **value**.
@@ -38,92 +20,56 @@ My question: if the value embedding is good enough, is the value matrix needed a
 2. **Slots:** each token gets 4 rows in the value embedding instead of 1, and the layer input picks which row to use. The MoME paper calls these rows slots.
 3. **No value matrix:** the value is now only the chosen value-embedding row.
 
-### Result
-
-All three together give the lowest loss in the chart above: 0.996 against 1.084 for normal attention, better on all 4 seeds.
-
-### Why it works: choosing the row matters
-
-When the 4 slots are averaged evenly instead of chosen, half the gain is gone, so the gain comes from choosing a row, not from having more weights.
-
-### With a mixture of experts
-
-I also tried a model whose feed-forward part is a mixture of experts. The slots helped there too (1.389 → 1.315, all 4 seeds). Spending the same number of extra weights on 3 more experts gave nothing (1.400).
+Together they reach 0.996 against 1.084 for normal attention, better on all 4 seeds. When the 4 slots are averaged evenly instead of chosen, half the gain is gone, so the gain comes from choosing a row, not from having more weights. Spending the same weights on 3 more feed-forward experts gave nothing.
 
 ## What each slot learns
 
-I trained the model and then checked which slot the second layer picks for each task.
-
 ![Second layer: which slot each task uses](slots.png)
 
-Each slot holds a different kind of information about a token:
+In the second layer, the task decides the slot. One slot holds the token itself, used by every task that copies a token. Another holds the token's common fact, and another its rare fact.
 
-- **Slot 3** is the token itself. Every task that copies a token uses it.
-- **Slot 2** is the token's common fact. Both tasks that ask for that fact use it.
-- **Slot 4** is the token's rare fact.
-- **Slot 1** is used for predicting the next word of text and for counting.
+The first layer cannot do this. Its input is only the token, before any context is read, so its slot choice is fixed per token. Slots in the second layer alone keep almost all the gain.
 
-So the task decides the slot. A token that is copied in one sentence and asked about in another keeps both answers ready.
+## Where it helps and where it does not
 
-### First layer vs second layer
+I changed the training situation one thing at a time to make it more like a large language model: more layers, a bigger vocabulary, many facts asked with very uneven frequency, longer training, and all of these together.
 
-The first layer cannot do this. Its input is only the token, before any context is read, so its slot choice is fixed per token. Slots in the second layer alone keep almost all the gain with half the extra weights.
+![Where the slots help](situations.png)
 
-## Where it stops working
+**Good at:**
 
-### Wider models
+- **Memorizing many facts.** The gain grows with the number of facts the model must store. It is largest when some facts are asked often and most are rare, as in real text.
+- **Copying the exact token.** Sorting and "look up a key, then recall it" improve even when there are few facts, because one slot holds a clean copy of the token. With 1024 words instead of 256, copying rare words improves too.
+- **More layers.** With 4 layers the gain is the same as with 2.
 
-![The gain shrinks as the model gets wider](width.png)
+**Not good at:**
 
-The gain shrinks as the model gets wider, and at width 256 with our usual 64 facts it is gone. When I gave the width-256 model 256 facts, the slots helped with facts again. With the value matrix removed, though, the width-256 model got worse at key → value lookup in 2 of 4 runs.
-
-### Is it about room for facts?
-
-Why does it shrink? My explanation was that the slots give each token extra room to store facts, and a wider model already has enough room.
-
-To test that, I changed how many facts the model must memorize.
+- **Information that comes from the context.** The value embedding only knows the token, not the sentence. At width 256 with no value matrix, key → value lookup inside the sentence got much worse. With the value matrix kept, it did not.
+- **Words with many meanings.** When each word had 16 different facts, the slots barely helped. They help most when each word plays a few different roles.
+- **Models that already have room.** When the model is wide or trained long on few facts, normal attention memorizes everything and the gain falls toward zero.
 
 ![More facts to memorize, bigger gain from the slots](facts.png)
 
-With few facts, the slots do not help with facts at all. With many facts, they help a lot. So the extra room for facts is real.
+## What this predicts for large language models
 
-### A second gain: sorting and lookup
+The gain depends on how many facts the model must store compared with the room it has. Large language models are trained on far more rare facts than they can fully memorize, so they sit on the "many facts" side. In the toy setting closest to that (bigger vocabulary, many uneven facts, longer training), the gain stays.
 
-There is a second gain that has nothing to do with facts: even with few facts, the slots help with sorting and with "look up a key, then recall it". Both need a clean copy of the token, which is what one slot holds.
+Removing the value matrix is risky at scale, because large models do a lot of lookup inside the context. Keeping it and adding the slots in later layers gave the same gain in every situation and never hurt.
 
-### Guess for large language models
+**My guess: keep the value matrix and add context-chosen slots in layers after the first.**
 
-**My guess for large models: keep the value matrix and add context-chosen slots, only in layers after the first.** Width 256 has only 2 seeds, so this is not settled.
+Three measurements would test this on a real model:
+
+1. Train a size ladder (for example nanochat sizes) with and without slots. If the gain comes from fact room, it should shrink with size unless the data adds more facts too.
+2. Split the loss by token frequency. The gain should be largest on rare tokens and rare facts.
+3. Record which slot each layer picks. In later layers, the choice should follow the task (copying vs fact recall), as in the toy.
 
 ## Is this new?
 
-Mostly no. Each piece already exists:
+Mostly no. [MoME](https://arxiv.org/abs/2609.15126) adds context-chosen slots on top of the value matrix. [Bank of Values](https://arxiv.org/abs/2606.02780) and [Memory Attention](https://arxiv.org/abs/2609.28399) replace values with a value embedding. [nanochat](https://github.com/karpathy/nanochat/discussions/481) gates the value embedding.
 
-- [MoME (arXiv 2609.15126)](https://arxiv.org/abs/2609.15126) adds context-chosen slots on top of the value matrix, which it keeps.
-- [Bank of Values (arXiv 2606.02780)](https://arxiv.org/abs/2606.02780) replaces the values with a value embedding in the last third of layers.
-- [Memory Attention (arXiv 2609.28399)](https://arxiv.org/abs/2609.28399) replaces the value matrix with key plus value embedding.
-- [nanochat](https://github.com/karpathy/nanochat/discussions/481) uses a gated value embedding.
-
-I found no published work on these three points:
-
-- context-chosen slots with no value matrix in every layer;
-- a measurement of what each slot holds;
-- the result that slots in the first layer do nothing.
+Not found in published work: slots with no value matrix in every layer, a measurement of what each slot holds, and the map of where it helps and where it does not.
 
 ## Setup
 
-A small transformer trained for about 5 seconds on a MacBook CPU. Like a language model, it learns 13 small tasks mixed into one stream:
-
-- predicting the next word of text;
-- copying;
-- facts;
-- key → value lookup;
-- sorting;
-- counting;
-- multi-step tasks, such as "look up a key, then recall that subject's fact".
-
-## More detail
-
-- [RESULTS.md](RESULTS.md) has every number, all controls and the command for each run.
-- [toy/](toy/) has the model and task code.
-- [chart.py](chart.py) draws the charts.
+A small transformer trained for 5–20 seconds on a MacBook CPU, on 13 small tasks mixed into one stream: predicting the next word of text, copying, facts, key → value lookup, sorting, counting and multi-step tasks. [RESULTS.md](RESULTS.md) has every number and command, [toy/](toy/) the code and [chart.py](chart.py) the charts.

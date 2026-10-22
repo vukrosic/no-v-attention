@@ -146,3 +146,43 @@ Command: `cd toy && VE_GATE=1 VE_SLOTS=4 FREEZE=v V_ZERO=1 WIDTH=64 NF=128 ./sui
 - Bank of Values, arXiv 2606.02780: value embeddings replace the values in the last third of layers, 135M and 780M models.
 - Memory Attention, arXiv 2609.28399: value = key + value embedding, with no value matrix and one row per word. It estimates a 50% cache saving but does not measure it.
 - nanochat: a value embedding with a sigmoid gate from the layer input.
+
+## Training situations
+
+Each situation changes one thing from the default (2 layers, width 64, 256 words, 64 facts, 400 steps). Loss is the mean over all 13 tasks. "Slots, no value matrix" = gate + 4 context-chosen slots in every layer, value matrix removed. "Value matrix kept" = gate + 4 slots in layers after the first, value matrix kept.
+
+| situation | knobs | seeds | normal attention | slots, no value matrix | value matrix kept |
+|---|---|---|---|---|---|
+| default | | 3 | 0.823 | 0.718 (−0.105) | 0.720 (−0.103) |
+| 4 layers | `LAYERS=4` | 3 | 0.807 | 0.712 (−0.096) | 0.695 (−0.113) |
+| 1024 words | `NV=1024` | 3 | 1.306 | 1.104 (−0.202) | 1.150 (−0.157) |
+| 256 facts, uneven frequency | `NF=256 FACTZIPF=1` | 3 | 1.219 | 0.885 (−0.334) | 0.923 (−0.296) |
+| 3x longer training | `STEPS=1200` | 3 | 0.439 | 0.408 (−0.031) | 0.401 (−0.038) |
+| all three | `NV=1024 NF=256 FACTZIPF=1 STEPS=1200` | 2 | 0.748 | 0.673 (−0.075) | 0.658 (−0.090) |
+| width 256 | `WIDTH=256` | 2 | 0.781 | 0.820 (+0.039) | 0.775 (−0.006) |
+
+Per-task loss change against normal attention (negative = better). chain = next word of text, factc / factr = common / rare fact, rfact = look up then common fact, rrecall = look up a key then recall, agree = agreement over a distance, bind = bind two items, sum3 = sum of three.
+
+| situation | version | chain | copy | factc | back2 | recall | sort | factr | count | rfact | agree | rrecall | bind | sum3 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| default | no value matrix | −0.05 | −0.03 | −0.04 | −0.03 | −0.09 | −0.40 | −0.39 | +0.41 | −0.25 | −0.00 | −0.35 | +0.01 | −0.16 |
+| default | value matrix kept | −0.04 | −0.02 | −0.04 | −0.04 | −0.09 | −0.23 | −0.44 | −0.04 | −0.22 | +0.20 | −0.25 | +0.00 | −0.15 |
+| 4 layers | no value matrix | −0.05 | −0.04 | −0.03 | −0.01 | −0.07 | −0.12 | −0.29 | +0.36 | −0.17 | −0.01 | −0.44 | +0.00 | −0.37 |
+| 4 layers | value matrix kept | −0.04 | −0.05 | −0.03 | −0.03 | −0.08 | −0.24 | −0.20 | +0.17 | −0.08 | −0.01 | −0.42 | −0.02 | −0.41 |
+| 1024 words | no value matrix | −0.05 | −0.11 | −0.03 | −0.14 | −0.25 | −0.43 | −0.41 | −0.34 | −0.19 | −0.00 | −0.50 | −0.05 | −0.12 |
+| 1024 words | value matrix kept | −0.04 | −0.11 | −0.03 | −0.11 | −0.24 | −0.34 | −0.28 | −0.27 | −0.12 | +0.17 | −0.43 | −0.06 | −0.16 |
+| 256 uneven facts | no value matrix | −0.03 | −0.03 | −0.60 | −0.05 | −0.12 | −0.35 | −0.02 | −0.35 | −1.72 | −0.43 | −0.45 | +0.00 | −0.20 |
+| 256 uneven facts | value matrix kept | −0.01 | −0.03 | −0.62 | −0.03 | −0.12 | −0.30 | −0.25 | −0.12 | −1.75 | −0.02 | −0.46 | −0.04 | −0.09 |
+| 3x training | no value matrix | −0.01 | +0.01 | −0.00 | −0.00 | −0.07 | −0.06 | −0.02 | +0.08 | −0.01 | +0.00 | −0.23 | −0.00 | −0.09 |
+| 3x training | value matrix kept | −0.01 | −0.00 | −0.00 | +0.00 | −0.06 | −0.02 | −0.02 | −0.06 | +0.00 | +0.02 | −0.28 | −0.01 | −0.07 |
+| all three | no value matrix | −0.01 | −0.06 | −0.02 | −0.05 | −0.13 | −0.14 | −0.38 | +0.02 | −0.11 | +0.19 | −0.28 | +0.02 | −0.03 |
+| all three | value matrix kept | +0.00 | −0.05 | −0.02 | −0.08 | −0.12 | −0.18 | −0.30 | −0.05 | −0.11 | −0.08 | −0.16 | +0.01 | −0.05 |
+| width 256 | no value matrix | +0.02 | −0.01 | +0.00 | +0.02 | +0.60 | −0.26 | −0.00 | +0.26 | −0.03 | +0.00 | +0.03 | +0.01 | −0.14 |
+| width 256 | value matrix kept | +0.00 | +0.02 | +0.00 | −0.01 | +0.05 | −0.11 | −0.03 | −0.02 | +0.07 | +0.00 | −0.15 | −0.01 | +0.12 |
+
+- With 3x training on 64 facts, normal attention learns every fact (fact loss 0.02), and only "look up a key, then recall" keeps a clear gain.
+- Without the value matrix, counting got worse in 3 situations and better in 2: noisy, no rule.
+- Without the value matrix at width 256, key → value lookup (recall) got much worse (+0.60). With the value matrix kept it did not (+0.05).
+- Noise between seeds is about 0.02–0.05 on the 13-task mean.
+
+Command: `cd toy && LAYERS=4 ./ablation.sh depth4 slots 0` (arms: `base`, `slots`, `keepv`; any knob from the table in front). Results go to `toy/ablation_runs.jsonl`. 4 layers take about 9 s per run, width 256 about 25 s, 3x training about 18 s.

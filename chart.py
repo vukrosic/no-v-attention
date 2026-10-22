@@ -49,16 +49,22 @@ ax.set_title("Second layer: which slot each task uses", loc="left", fontsize=14,
 for s in ax.spines.values(): s.set_visible(False)
 ax.tick_params(length=0); fig.tight_layout(); fig.savefig("slots.png", dpi=160); plt.close(fig)
 
-# 3. gain vs model width (mean loss change, context-picked slots without value matrix minus normal attention)
-w = ["64\n(4 seeds)", "128\n(4 seeds)", "256\n(2 seeds)"]; g = [-0.088, -0.021, 0.036]
-fig, ax = plt.subplots(figsize=(6.4, 3.4))
-ax.bar(range(3), g, width=0.55, color=[BLUE, BLUE, "#b9b8b2"])
-for i, v in enumerate(g): ax.text(i, v + (0.006 if v > 0 else -0.012), f"{v:+.3f}", ha="center", fontsize=11, color=INK)
-ax.axhline(0, color=INK2, lw=1); ax.set_xticks(range(3), w); ax.set_ylim(-0.11, 0.06)
-ax.set_xlabel("model width"); ax.set_ylabel("loss change (below 0 = better)")
-ax.set_title("The gain shrinks as the model gets wider", loc="left", fontsize=14, color=INK)
-clean(ax); ax.yaxis.grid(True, color=GRID); ax.set_axisbelow(True)
-fig.tight_layout(); fig.savefig("width.png", dpi=160); plt.close(fig)
+# 3. loss change in different training situations (mean over 13 tasks; 2-3 seeds)
+sit = ["default\n(2 layers, 256 words, 64 facts)", "4 layers", "1024 words", "256 facts, some asked\nmuch more often", "3x longer training", "all three: 1024 words,\n256 uneven facts, 3x training", "4x wider (width 256)"]
+nov = [-0.105, -0.096, -0.202, -0.334, -0.031, -0.075, 0.039]
+kv = [-0.103, -0.113, -0.157, -0.296, -0.038, -0.090, -0.006]
+fig, ax = plt.subplots(figsize=(8.2, 5.6)); y = list(range(len(sit)))[::-1]; h = 0.36
+ax.barh([v + h / 2 for v in y], nov, height=h - 0.04, color=BLUE, label="slots, no value matrix")
+ax.barh([v - h / 2 for v in y], kv, height=h - 0.04, color=ORANGE, label="slots in later layers, value matrix kept")
+for v, a_, b_ in zip(y, nov, kv):
+    for yy, val in ((v + h / 2, a_), (v - h / 2, b_)):
+        ax.text(val + (0.006 if val > 0 else -0.006), yy, f"{val:+.2f}", va="center", ha="left" if val > 0 else "right", fontsize=9.5, color=INK2)
+ax.axvline(0, color=INK2, lw=1); ax.set_yticks(y, sit, fontsize=10.5); ax.set_xlim(-0.40, 0.09)
+ax.set_xlabel("loss change vs normal attention (below 0 = better)")
+ax.set_title("Where the slots help", loc="left", fontsize=14, color=INK)
+ax.legend(frameon=False, loc="lower left", fontsize=10)
+clean(ax); ax.xaxis.grid(True, color=GRID); ax.set_axisbelow(True)
+fig.tight_layout(); fig.savefig("situations.png", dpi=160); plt.close(fig)
 
 # 4. fact-loss change vs number of facts to memorize, at two widths (2 seeds each)
 nf = [16, 32, 64, 128, 256]
