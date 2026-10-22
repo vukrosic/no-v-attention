@@ -118,6 +118,8 @@ Too noisy to choose a slot count at this width.
 
 ## Number of facts to memorize
 
+![More facts to memorize, bigger gain from the slots](facts.png)
+
 Is the gain from extra room for facts? Test: change how many facts the model must memorize (`NF`) at width 32 and 64, on the task suite above, 2 seeds each. "Fact loss" is the mean loss of the three fact tasks (common fact, rare fact, look up then common fact). "Other" is the mean of copy, repeat 2 back, key → value lookup, sort, count and next word of text.
 
 | width | facts | fact loss: normal → slots | other tasks: normal → slots | all 13 tasks: normal → slots |
