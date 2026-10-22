@@ -1,4 +1,4 @@
-"""draws the three README charts from the numbers in RESULTS.md"""
+"""draws the README charts from the numbers in RESULTS.md"""
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -59,3 +59,17 @@ ax.set_xlabel("model width"); ax.set_ylabel("loss change (below 0 = better)")
 ax.set_title("The gain shrinks as the model gets wider", loc="left", fontsize=14, color=INK)
 clean(ax); ax.yaxis.grid(True, color=GRID); ax.set_axisbelow(True)
 fig.tight_layout(); fig.savefig("width.png", dpi=160); plt.close(fig)
+
+# 4. fact-loss change vs number of facts to memorize, at two widths (2 seeds each)
+nf = [16, 32, 64, 128, 256]
+gain = {"width 32": ([-0.06, -0.03, -0.26, -0.66, -1.10], ORANGE), "width 64": ([0.01, -0.04, -0.22, -0.80, -0.89], BLUE)}
+fig, ax = plt.subplots(figsize=(6.8, 3.8))
+for name, (g, c) in gain.items():
+    ax.plot(range(5), g, color=c, lw=2, marker="o", ms=8, mec=SURF, mew=2, label=name)
+    ax.text(4.12, g[-1], name, va="center", fontsize=11, color=INK)
+ax.axhline(0, color=INK2, lw=1); ax.set_xticks(range(5), nf); ax.set_xlim(-0.3, 4.9)
+ax.set_xlabel("number of facts the model must memorize"); ax.set_ylabel("fact loss change\n(below 0 = better)")
+ax.set_title("More facts to memorize, bigger gain from the slots", loc="left", fontsize=14, color=INK)
+ax.legend(frameon=False, loc="lower left", fontsize=10)
+clean(ax); ax.yaxis.grid(True, color=GRID); ax.set_axisbelow(True)
+fig.tight_layout(); fig.savefig("facts.png", dpi=160); plt.close(fig)

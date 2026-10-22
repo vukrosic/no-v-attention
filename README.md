@@ -47,7 +47,17 @@ The first layer cannot do this. Its input is only the token, before any context 
 
 ![The gain shrinks as the model gets wider](width.png)
 
-The gain comes from extra memory for facts. A wider model already has room for all 64 facts in our tests, so the gain shrinks as width grows and is gone at width 256.
+Why does it shrink? My explanation was that the slots give each token extra room to store facts, and a wider model already has enough room.
+
+To test that, I changed how many facts the model must memorize.
+
+![More facts to memorize, bigger gain from the slots](facts.png)
+
+With few facts, the slots do not help with facts at all. With many facts, they help a lot. So the extra room for facts is real.
+
+But there is a second gain that has nothing to do with facts: even with few facts, the slots help with sorting and with "look up a key, then recall it". Both need a clean copy of the token, which is what one slot holds.
+
+At width 256 with our usual 64 facts, both gains are gone.
 
 When I gave the width-256 model 256 facts, slots helped with facts again. Without the value matrix, though, it got worse at key → value lookup in 2 of 4 runs.
 
@@ -84,4 +94,4 @@ A small transformer trained for about 5 seconds on a MacBook CPU. Like a languag
 
 - [RESULTS.md](RESULTS.md) has every number, all controls and the command for each run.
 - [toy/](toy/) has the model and task code.
-- [chart.py](chart.py) draws the three charts.
+- [chart.py](chart.py) draws the charts.
