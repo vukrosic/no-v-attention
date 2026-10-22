@@ -4,7 +4,7 @@
 
 **Some layers of a language model do not need the attention value matrix.**
 
-**A small learned table can replace it.** For every token in the vocabulary, the table stores 4 vectors, and the sentence picks which one to use. For example, "bank" could have one vector for a river bank and another for a money bank.
+**A learned table can replace it.** Each layer has its own table. For every token in the vocabulary, the table stores 4 vectors, and the sentence picks which one to use. For example, "bank" could have one vector for a river bank and another for a money bank.
 
 **The table is better at rare facts and at copying a word exactly**, such as repeating a name that appeared earlier in the text.
 
@@ -14,7 +14,8 @@
 - **Bad at:** information that comes from the context, which still needs the value matrix.
 - **Little gain** when the model already has room to memorize everything.
 - **Where to put it:** in the early layers after the first, with the value matrix kept in the later layers.
-- **Safest version:** keep the value matrix and add the stored vectors on top; it never hurt.
+- **Safest version for quality:** keep the value matrix and add the stored vectors on top; the loss never got worse in my tests.
+- **Cost:** each table holds vocabulary × 4 × width weights, tens of times more memory than the value matrix it replaces. Compute barely changes, because each token reads only one row of its table.
 
 ![Value embedding with context-chosen rows vs the value matrix](main_result.png)
 
