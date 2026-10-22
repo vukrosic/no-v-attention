@@ -4,7 +4,7 @@
 
 **Some layers of a language model do not need the attention value matrix.**
 
-**A small learned table can replace it.** For every token in the vocabulary (a word or a piece of a word), the table stores 4 vectors, and the sentence picks which one to use. For example, "bank" could have one vector for a river bank and another for a money bank.
+**A small learned table can replace it.** For every token in the vocabulary, the table stores 4 vectors, and the sentence picks which one to use. For example, "bank" could have one vector for a river bank and another for a money bank.
 
 **The table is better at rare facts and at copying a word exactly**, such as repeating a name that appeared earlier in the text.
 
