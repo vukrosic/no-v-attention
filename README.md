@@ -13,6 +13,7 @@
 - **Good at:** memorizing many rare facts, and copying the exact token.
 - **Bad at:** information that comes from the context, which still needs the value matrix.
 - **Little gain** when the model already has room to memorize everything.
+- **Scaling (a hint, 4 small sizes):** when the model and its number of facts grow together, the value matrix plus stored vectors kept its gain up to the widest model; without the value matrix the gain shrank with width. [Details](WHERE-IT-WORKS.md#does-it-scale).
 - **Where to put it:** in the early layers after the first, with the value matrix kept in the later layers.
 - **Safest version for quality:** keep the value matrix and add the stored vectors on top; the loss never got worse in my tests.
 - **Cost:** each table holds vocabulary × 4 × width weights, tens of times more memory than the value matrix it replaces. Compute barely changes, because each token reads only one row of its table.
