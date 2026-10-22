@@ -1,6 +1,6 @@
 # Removing the attention value matrix
 
-**In a 2-layer toy transformer, I removed the attention value matrix and kept only a value embedding with 4 rows per token, where the layer input picks which row to use. It reached a lower loss than normal attention on all 4 seeds. The gain shrinks as the model gets wider and is gone at width 256, so this is not shown for large language models.**
+**In attention, the value matrix turns each earlier token into the vector that gets copied. I removed it. Instead, each token keeps a few learned value vectors, and the context picks which one to use. The model trained to a lower loss than with the value matrix, and each stored vector learned to hold a different kind of information about its token.**
 
 ![Value embedding with context-chosen rows vs the value matrix](main_result.png)
 
@@ -24,7 +24,7 @@ All three together give the lowest loss in the chart above: 0.996 against 1.084 
 
 The control shows why it works. When the 4 slots are averaged evenly instead of chosen, half the gain is gone, so the gain comes from choosing a row, not from having more weights.
 
-I also tried a version of the toy whose feed-forward part is a mixture of experts. The slots helped there too (1.389 → 1.315, all 4 seeds). Spending the same number of extra weights on 3 more experts gave nothing (1.400).
+I also tried a model whose feed-forward part is a mixture of experts. The slots helped there too (1.389 → 1.315, all 4 seeds). Spending the same number of extra weights on 3 more experts gave nothing (1.400).
 
 ## What each slot learns
 
@@ -47,7 +47,7 @@ The first layer cannot do this. Its input is only the token, before any context 
 
 ![The gain shrinks as the model gets wider](width.png)
 
-The gain comes from extra memory for facts. A wider model already has room for all 64 facts in this toy, so the gain shrinks as width grows and is gone at width 256.
+The gain comes from extra memory for facts. A wider model already has room for all 64 facts in our tests, so the gain shrinks as width grows and is gone at width 256.
 
 When I gave the width-256 model 256 facts, slots helped with facts again. Without the value matrix, though, it got worse at key → value lookup in 2 of 4 runs.
 
@@ -68,9 +68,9 @@ I found no published work on these three points:
 - a measurement of what each slot holds;
 - the result that slots in the first layer do nothing.
 
-## The toy
+## Setup
 
-A 2-layer transformer of width 64, trained for about 5 seconds on a MacBook CPU. Like a language model, it learns 13 small tasks mixed into one stream:
+A small transformer trained for about 5 seconds on a MacBook CPU. Like a language model, it learns 13 small tasks mixed into one stream:
 
 - predicting the next word of text;
 - copying;
