@@ -205,6 +205,24 @@ Width 256 (`WIDTH=256`, 5 seeds for the rows marked *, 3 for the others):
 
 Commands: `cd experiments && LAYERS=4 ./ablation.sh map split01 0` (slots only in layers 1–2), `LAYERS=4 ./ablation.sh map nov03 0` (value matrix removed in layers 1 and 4), `LAYERS=4 VE_LAYERS=1 ./ablation.sh place base 0` (table in layer 2 only), then `python3 layer_table.py map`. 4 layers take about 9 s per run, 4 layers at width 256 about 43 s.
 
+## Scaling: width and facts grow together
+
+Facts = 2 x width, 1024 words (`NV=1024`), 2 layers, 800 steps (`STEPS=800`), 2 seeds. Mean over 13 tasks; facts = mean of factc, factr, rfact.
+
+| width | facts | normal attention | slots, no value matrix | value matrix kept + slots | fact loss: normal / no value matrix / kept |
+|---|---|---|---|---|---|
+| 32 | 64 | 1.078 | 0.980 (−0.097) | 1.000 (−0.078) | 0.36 / 0.19 / 0.25 |
+| 64 | 128 | 0.915 | 0.807 (−0.108) | 0.766 (−0.149) | 0.51 / 0.38 / 0.27 |
+| 128 | 256 | 0.933 | 0.857 (−0.075) | 0.777 (−0.156) | 1.12 / 0.81 / 0.59 |
+| 256 | 512 | 1.059 | 1.011 (−0.048) | 0.954 (−0.105) | 1.71 / 1.57 / 1.47 |
+
+At 400 steps the same ladder gave −0.150 / −0.223 / −0.284 / −0.073 (value matrix kept) and −0.146 / −0.203 / −0.222 / −0.036 (no value matrix), but there the plain model at width 256 was worse than at width 128, so the 800-step ladder is the one shown.
+
+- The plain model does not improve with width here because the facts grow too: this tests the gain at a fixed facts-per-width ratio, not a full scaling law.
+- With fixed facts (64) the gain was gone by width 256 (Training situations table), so growing facts with width is what keeps it.
+
+Command: `cd experiments && NV=1024 WIDTH=128 NF=256 STEPS=800 ./ablation.sh scale keepv 0` (arms `base`, `slots`, `keepv`). Width 256 takes about 50 s per run.
+
 ## Literature
 
 - ROME, Meng et al. 2022, arXiv 2202.05262: facts are recalled through feed-forward layers in the middle of the model.

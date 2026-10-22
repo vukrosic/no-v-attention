@@ -97,3 +97,16 @@ for ax, rows, title, lim in ((axs[0], place, "Which layers get a value-embedding
     ax.set_title(title, loc="left", fontsize=13, color=INK); clean(ax); ax.xaxis.grid(True, color=GRID); ax.set_axisbelow(True)
 axs[0].set_xlabel("loss change vs a table in every layer"); axs[1].set_xlabel("loss change vs normal attention")
 fig.tight_layout(); fig.savefig("layers.png", dpi=160); plt.close(fig)
+
+# 6. scaling: width and number of facts grow together (facts = 2 x width), 1024 words, 800 steps, 2 seeds
+ws = [32, 64, 128, 256]
+lines = {"value matrix kept + slots": ([-0.078, -0.149, -0.156, -0.105], ORANGE), "slots, no value matrix": ([-0.097, -0.108, -0.075, -0.048], BLUE)}
+fig, ax = plt.subplots(figsize=(7.2, 3.9))
+for name, (g, c) in lines.items():
+    ax.plot(range(4), g, color=c, lw=2, marker="o", ms=8, mec=SURF, mew=2, label=name)
+    ax.text(3.12, g[-1], name, va="center", fontsize=10.5, color=INK)
+ax.axhline(0, color=INK2, lw=1); ax.set_xticks(range(4), [f"width {w}\n{2 * w} facts" for w in ws]); ax.set_xlim(-0.3, 4.6); ax.set_ylim(-0.2, 0.02)
+ax.set_ylabel("loss change vs\nnormal attention")
+ax.set_title("Model and facts grow together", loc="left", fontsize=14, color=INK)
+clean(ax); ax.yaxis.grid(True, color=GRID); ax.set_axisbelow(True)
+fig.tight_layout(); fig.savefig("scaling.png", dpi=160); plt.close(fig)
