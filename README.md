@@ -4,7 +4,7 @@
 
 ![Value embedding with context-chosen rows vs the value matrix](main_result.png)
 
-## Where attention gets its values
+## The core idea
 
 When a token looks back at earlier tokens, attention copies a vector from each earlier token. That vector is called the **value**.
 
