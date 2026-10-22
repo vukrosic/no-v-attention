@@ -39,7 +39,7 @@ Each layer has its own table. The stored vectors are learned in training and do 
 
 - [METHOD.md](METHOD.md): what I changed and what each stored vector learns.
 - [WHERE-IT-WORKS.md](WHERE-IT-WORKS.md): where it helps, which layers need the value matrix, and what it predicts for large language models.
-- [RESULTS.md](RESULTS.md): every number, seed and command. Code in [toy/](toy/), charts from [chart.py](chart.py).
+- [RESULTS.md](RESULTS.md): every number, seed and command. Code in [experiments/](experiments/), charts from [chart.py](chart.py).
 
 ## Is this new?
 

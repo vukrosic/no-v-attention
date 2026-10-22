@@ -13,7 +13,7 @@ All runs: 2-layer transformer, width 64 unless stated, 2 heads, RoPE, QK-norm, S
 
 ## Main result: task suite, 400 steps, no mixture of experts
 
-`cd toy && env [knobs] ./suite_run.sh SEED`, then `python3 summ.py`
+`cd experiments && env [knobs] ./suite_run.sh SEED`, then `python3 summ.py`
 
 | setup | s0 | s1 | s2 | s3 | mean |
 |---|---|---|---|---|---|
@@ -37,7 +37,7 @@ All runs: 2-layer transformer, width 64 unless stated, 2 heads, RoPE, QK-norm, S
 
 ## Same test on the toy with a mixture of experts (8 experts, 260 steps)
 
-`cd toy && env [knobs] ./toy.sh SEED`
+`cd experiments && env [knobs] ./toy.sh SEED`
 
 | setup | s0 | s1 | s2 | s3 | mean |
 |---|---|---|---|---|---|
@@ -50,7 +50,7 @@ The 3 extra slots per word are about 49k weights per layer, the size of about 3 
 
 ## What the slots hold
 
-`cd toy && env [suite knobs] VE_GATE=1 VE_SLOTS=4 python3 sprobe.py 0 400` (suite knobs: as set in `suite_run.sh` and `toy.sh` with `MOE=0`)
+`cd experiments && env [suite knobs] VE_GATE=1 VE_SLOTS=4 python3 sprobe.py 0 400` (suite knobs: as set in `suite_run.sh` and `toy.sh` with `MOE=0`)
 
 | layer | how sharp the pick is (top slot weight) | same slot every time for a given word | what decides the slot |
 |---|---|---|---|
@@ -140,7 +140,7 @@ Is the gain from extra room for facts? Test: change how many facts the model mus
 - A second gain does not depend on facts: with only 16 facts at width 64, sorting improves by 0.41 and "look up a key, then recall" by 0.48. Both need a clean copy of the token, which is what the second-layer "token itself" slot holds.
 - Counting got worse with slots at 16–32 facts (+0.09 to +0.55).
 
-Command: `cd toy && VE_GATE=1 VE_SLOTS=4 FREEZE=v V_ZERO=1 WIDTH=64 NF=128 ./suite_run.sh 0` (drop the first four knobs for normal attention).
+Command: `cd experiments && VE_GATE=1 VE_SLOTS=4 FREEZE=v V_ZERO=1 WIDTH=64 NF=128 ./suite_run.sh 0` (drop the first four knobs for normal attention).
 
 ## Which layers need the value matrix
 
@@ -203,7 +203,7 @@ Width 256 (`WIDTH=256`, 5 seeds for the rows marked *, 3 for the others):
 - At width 64 every layer can drop the value matrix at a small cost; no layer stands out beyond the noise.
 - At width 256 the slots do not help at all, and removing the value matrix from the early layers costs more than from the late layers, but the gap is about one standard error.
 
-Commands: `cd toy && LAYERS=4 ./ablation.sh map split01 0` (slots only in layers 1–2), `LAYERS=4 ./ablation.sh map nov03 0` (value matrix removed in layers 1 and 4), `LAYERS=4 VE_LAYERS=1 ./ablation.sh place base 0` (table in layer 2 only), then `python3 layer_table.py map`. 4 layers take about 9 s per run, 4 layers at width 256 about 43 s.
+Commands: `cd experiments && LAYERS=4 ./ablation.sh map split01 0` (slots only in layers 1–2), `LAYERS=4 ./ablation.sh map nov03 0` (value matrix removed in layers 1 and 4), `LAYERS=4 VE_LAYERS=1 ./ablation.sh place base 0` (table in layer 2 only), then `python3 layer_table.py map`. 4 layers take about 9 s per run, 4 layers at width 256 about 43 s.
 
 ## Literature
 
@@ -252,4 +252,4 @@ Per-task loss change against normal attention (negative = better). chain = next 
 - Without the value matrix at width 256, key → value lookup (recall) got much worse (+0.60). With the value matrix kept it did not (+0.05).
 - Noise between seeds is about 0.02–0.05 on the 13-task mean.
 
-Command: `cd toy && LAYERS=4 ./ablation.sh depth4 slots 0` (arms: `base`, `slots`, `keepv`; any knob from the table in front). Results go to `toy/ablation_runs.jsonl`. 4 layers take about 9 s per run, width 256 about 25 s, 3x training about 18 s.
+Command: `cd experiments && LAYERS=4 ./ablation.sh depth4 slots 0` (arms: `base`, `slots`, `keepv`; any knob from the table in front). Results go to `experiments/ablation_runs.jsonl`. 4 layers take about 9 s per run, width 256 about 25 s, 3x training about 18 s.
