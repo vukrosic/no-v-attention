@@ -142,8 +142,73 @@ Is the gain from extra room for facts? Test: change how many facts the model mus
 
 Command: `cd toy && VE_GATE=1 VE_SLOTS=4 FREEZE=v V_ZERO=1 WIDTH=64 NF=128 ./suite_run.sh 0` (drop the first four knobs for normal attention).
 
+## Which layers need the value matrix
+
+4-layer model (`LAYERS=4`), width 64 unless noted, default suite. Layers are numbered 1–4 here (code index 0–3). Loss change is the mean over seeds of the paired difference against the reference, ± standard error; context = recall, rrecall, bind, chain; facts = factc, factr, rfact; copy = copy, sort, back2.
+
+**One plain value-embedding table (one row per word, value matrix everywhere), 4 seeds, change vs a table in every layer:**
+
+| table in | all 13 | context | facts | copy |
+|---|---|---|---|---|
+| layer 2 only | −0.004 ± 0.008 | −0.015 | −0.043 | +0.043 |
+| layers 1–3 | +0.012 ± 0.024 | +0.001 | +0.053 | +0.029 |
+| layers 2–4 | +0.018 ± 0.023 | +0.003 | +0.008 | +0.089 |
+| layer 4 only | +0.098 ± 0.014 | +0.085 | +0.226 | −0.068 |
+| layer 3 only | +0.148 ± 0.028 | +0.099 | +0.269 | +0.023 |
+| layer 1 only, normal learning rate | +0.225 ± 0.022 | +0.237 | +0.144 | +0.343 |
+| no table | +0.281 ± 0.033 | +0.238 | +0.229 | +0.371 |
+| layer 1 only | +0.377 ± 0.014 | +0.412 | +0.278 | +0.523 |
+
+- The table in layer 1 adds nothing: layer 1's value is already the value matrix times the token's own embedding, a fixed vector per token. At its usual 32x learning rate it is worse than no table; at the normal rate it ties with no table.
+- A table in layer 2 alone matches tables in all four layers.
+
+**Split: chosen layers use only gated 4-slot value embedding (value matrix removed), the other layers use only the value matrix (no table), 6 seeds, change vs normal attention:**
+
+| slots only in | all 13 | context | facts | copy |
+|---|---|---|---|---|
+| layers 1–2 | −0.058 ± 0.034 | −0.135 | −0.064 | −0.119 |
+| layers 2–3 | −0.037 ± 0.027 | −0.031 | −0.095 | −0.008 |
+| layer 4 | +0.060 ± 0.024 | +0.064 | +0.195 | −0.105 |
+| layers 3–4 | +0.111 ± 0.024 | +0.247 | +0.150 | −0.096 |
+| layers 1 and 4 | +0.358 ± 0.048 | +0.633 | +0.661 | +0.071 |
+| layer 1 | +0.916 ± 0.079 | +0.837 | +1.222 | +1.105 |
+
+**Slots in every layer, value matrix removed only in the chosen layers, change vs normal attention.** Width 64 (6 seeds for the rows marked *, 2 for the others):
+
+| value matrix removed in | all 13 | context | facts | copy |
+|---|---|---|---|---|
+| none (kept everywhere)* | −0.106 ± 0.027 | −0.075 | −0.154 | −0.061 |
+| layer 1* | −0.108 ± 0.017 | −0.106 | −0.165 | −0.050 |
+| layer 4* | −0.106 ± 0.028 | −0.131 | −0.165 | −0.055 |
+| layers 2–3* | −0.104 ± 0.026 | −0.104 | −0.105 | −0.083 |
+| all four* | −0.087 ± 0.006 | −0.111 | −0.124 | −0.062 |
+| layers 1–2* | −0.077 ± 0.023 | −0.069 | −0.093 | −0.070 |
+| layers 3–4* | −0.067 ± 0.024 | −0.099 | −0.061 | −0.077 |
+| layers 1 and 4* | −0.063 ± 0.028 | −0.094 | −0.101 | −0.061 |
+| the other 8 subsets | −0.140 to −0.074 | | | |
+
+Width 256 (`WIDTH=256`, 5 seeds for the rows marked *, 3 for the others):
+
+| value matrix removed in | all 13 | context | facts | copy |
+|---|---|---|---|---|
+| layers 3–4* | +0.008 ± 0.022 | +0.080 | −0.019 | +0.031 |
+| layers 2–3 | +0.009 ± 0.006 | +0.118 | −0.088 | +0.058 |
+| layer 4* | +0.030 ± 0.035 | +0.158 | −0.057 | +0.072 |
+| layer 1* | +0.045 ± 0.023 | +0.163 | +0.012 | +0.034 |
+| none (kept everywhere) | +0.050 ± 0.029 | +0.137 | +0.031 | +0.060 |
+| layers 1 and 4 | +0.053 ± 0.010 | +0.131 | −0.049 | +0.117 |
+| layers 1–2* | +0.065 ± 0.035 | +0.162 | +0.112 | +0.047 |
+| all four | +0.102 ± 0.054 | +0.183 | +0.041 | +0.117 |
+
+- At width 64 every layer can drop the value matrix at a small cost; no layer stands out beyond the noise.
+- At width 256 the slots do not help at all, and removing the value matrix from the early layers costs more than from the late layers, but the gap is about one standard error.
+
+Commands: `cd toy && LAYERS=4 ./ablation.sh map split01 0` (slots only in layers 1–2), `LAYERS=4 ./ablation.sh map nov03 0` (value matrix removed in layers 1 and 4), `LAYERS=4 VE_LAYERS=1 ./ablation.sh place base 0` (table in layer 2 only), then `python3 layer_table.py map`. 4 layers take about 9 s per run, 4 layers at width 256 about 43 s.
+
 ## Literature
 
+- ROME, Meng et al. 2022, arXiv 2202.05262: facts are recalled through feed-forward layers in the middle of the model.
+- nanochat value-embedding notes (github.com/karpathy/nanochat/discussions/481): tables in alternating layers worked best; tables only in early layers did not.
 - MoME, arXiv 2609.15126: gate + top-2 of M slots per word, added on top of the value matrix; about 0.002 bpb better than a plain value embedding at equal size on nanochat. It never removes the value matrix.
 - Bank of Values, arXiv 2606.02780: value embeddings replace the values in the last third of layers, 135M and 780M models.
 - Memory Attention, arXiv 2609.28399: value = key + value embedding, with no value matrix and one row per word. It estimates a 50% cache saving but does not measure it.

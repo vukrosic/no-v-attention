@@ -79,3 +79,21 @@ ax.set_title("More facts to memorize, bigger gain from the slots", loc="left", f
 ax.legend(frameon=False, loc="lower left", fontsize=10)
 clean(ax); ax.yaxis.grid(True, color=GRID); ax.set_axisbelow(True)
 fig.tight_layout(); fig.savefig("facts.png", dpi=160); plt.close(fig)
+
+# 5. which layers: left = one plain value-embedding table in chosen layers only (value matrix everywhere), 4 seeds;
+#    right = split: value-embedding slots with no value matrix in chosen layers, value matrix and no table in the rest, 6 seeds. 4-layer model, width 64
+place = [("table in every layer", 0.0), ("layer 2 only", -0.004), ("layers 1–3", 0.012), ("layers 2–4", 0.018),
+         ("layer 4 only", 0.098), ("layer 3 only", 0.148), ("no table", 0.281), ("layer 1 only", 0.377)]
+split = [("layers 1–2 slots, 3–4 matrix", -0.058), ("layers 2–3 slots, 1 & 4 matrix", -0.037), ("layer 4 slots, 1–3 matrix", 0.060),
+         ("layers 3–4 slots, 1–2 matrix", 0.111), ("layers 1 & 4 slots, 2–3 matrix", 0.358), ("layer 1 slots, 2–4 matrix", 0.916)]
+fig, axs = plt.subplots(1, 2, figsize=(12.4, 4.6), gridspec_kw={"width_ratios": [1, 1.05]})
+for ax, rows, title, lim in ((axs[0], place, "Which layers get a value-embedding table", (-0.06, 0.45)),
+                             (axs[1], split, "Some layers slots only, others value matrix only", (-0.12, 1.05))):
+    y = list(range(len(rows)))[::-1]
+    ax.barh(y, [v for _, v in rows], height=0.6, color=[BLUE if v < 0.03 else "#b9b8b2" for _, v in rows])
+    for yy, (_, v) in zip(y, rows):
+        ax.text(max(v, 0) + 0.02 * lim[1], yy, f"{v:+.2f}", va="center", ha="left", fontsize=10, color=INK2)
+    ax.axvline(0, color=INK2, lw=1); ax.set_yticks(y, [n for n, _ in rows], fontsize=10.5); ax.set_xlim(*lim)
+    ax.set_title(title, loc="left", fontsize=13, color=INK); clean(ax); ax.xaxis.grid(True, color=GRID); ax.set_axisbelow(True)
+axs[0].set_xlabel("loss change vs a table in every layer"); axs[1].set_xlabel("loss change vs normal attention")
+fig.tight_layout(); fig.savefig("layers.png", dpi=160); plt.close(fig)
