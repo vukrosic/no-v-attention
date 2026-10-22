@@ -32,37 +32,18 @@ The first layer cannot do this. Its input is only the token, before any context 
 
 ## Where it helps and where it does not
 
-I changed the training situation one thing at a time to make it more like a large language model: more layers, a bigger vocabulary, many facts asked with very uneven frequency, longer training, and all of these together.
+I changed the training one thing at a time to make it more like a large language model.
 
 ![Where the slots help](situations.png)
 
-**Good at:**
-
-- **Memorizing many facts.** The gain grows with the number of facts the model must store. It is largest when some facts are asked often and most are rare, as in real text.
-- **Copying the exact token.** Sorting and "look up a key, then recall it" improve even when there are few facts, because one slot holds a clean copy of the token. With 1024 words instead of 256, copying rare words improves too.
-- **More layers.** With 4 layers the gain is the same as with 2.
-
-**Not good at:**
-
-- **Information that comes from the context.** The value embedding only knows the token, not the sentence. At width 256 with no value matrix, key → value lookup inside the sentence got much worse. With the value matrix kept, it did not.
-- **Words with many meanings.** When each word had 16 different facts, the slots barely helped. They help most when each word plays a few different roles.
-- **Models that already have room.** When the model is wide or trained long on few facts, normal attention memorizes everything and the gain falls toward zero.
-
-![More facts to memorize, bigger gain from the slots](facts.png)
+- **Good at memorizing many facts**, most of all when most facts are rare, as in real text.
+- **Good at copying the exact token**: sorting and "look up a key, then recall it" improve even with few facts.
+- **Not good at information that comes from the context.** The value embedding only knows the token. Without the value matrix, a wide model got much worse at lookup inside the sentence.
+- **No gain when the model already has room**: a wide model, or long training on few facts, memorizes everything anyway.
 
 ## What this predicts for large language models
 
-The gain depends on how many facts the model must store compared with the room it has. Large language models are trained on far more rare facts than they can fully memorize, so they sit on the "many facts" side. In the toy setting closest to that (bigger vocabulary, many uneven facts, longer training), the gain stays.
-
-Removing the value matrix is risky at scale, because large models do a lot of lookup inside the context. Keeping it and adding the slots in later layers gave the same gain in every situation and never hurt.
-
-**My guess: keep the value matrix and add context-chosen slots in layers after the first.**
-
-Three measurements would test this on a real model:
-
-1. Train a size ladder (for example nanochat sizes) with and without slots. If the gain comes from fact room, it should shrink with size unless the data adds more facts too.
-2. Split the loss by token frequency. The gain should be largest on rare tokens and rare facts.
-3. Record which slot each layer picks. In later layers, the choice should follow the task (copying vs fact recall), as in the toy.
+Large models see far more rare facts than they can memorize, and the gain held in the toy setting closest to that. **My guess: keep the value matrix and add context-chosen slots in layers after the first**, which helped in every situation and never hurt. To test it on a real model: train a size ladder with and without slots, split the loss by token frequency (the gain should sit on rare tokens), and record which slot each layer picks.
 
 ## Is this new?
 
