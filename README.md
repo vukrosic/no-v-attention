@@ -1,4 +1,4 @@
-# Removing the attention value matrix
+# Delete attention value matrices from your LLM (from some layers)
 
 **In attention, the value matrix turns each earlier token into the vector that gets copied. I removed it. Instead, each token keeps a few learned value vectors, and the context picks which one to use. The model trained to a lower loss than with the value matrix, and each stored vector learned to hold a different kind of information about its token.**
 
