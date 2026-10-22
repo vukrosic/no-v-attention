@@ -1,4 +1,4 @@
-# In a tiny 2-layer transformer, removing the attention value matrix lowered the loss when the value embedding had 4 rows per token, chosen by context
+# Removing the attention value matrix
 
 **In a 2-layer toy transformer, I removed the attention value matrix and kept only a value embedding with 4 rows per token, where the layer input picks which row to use. It reached a lower loss than normal attention on all 4 seeds. The gain shrinks as the model gets wider and is gone at width 256, so this is not shown for large language models.**
 
