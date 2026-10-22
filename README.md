@@ -1,16 +1,14 @@
 # Delete attention value matrices from your LLM (from some layers)
 
-**Attention lets each token gather information from earlier tokens.**
+## Abstract
 
-Each earlier token offers one vector, called its **value**.
+**Some layers of a language model do not need the attention value matrix.**
 
-The current token (the latest one) takes a weighted mix of these values. Earlier tokens it pays more attention to get more weight.
+**A small learned table can replace it.** For every token in the vocabulary (a word or a piece of a word), the table stores 4 vectors, and the sentence picks which one to use. For example, "bank" could have one vector for a river bank and another for a money bank.
 
-Normally the **value matrix** makes each value, from what the model knows about that earlier token in its sentence.
+**The table is better at rare facts and at copying a word exactly**, such as repeating a name that appeared earlier in the text.
 
-**In some layers, the value matrix can be replaced by a value embedding.** This is a learned table, like a dictionary, with a few stored vectors for every word in the vocabulary.
-
-Each layer has its own table. The stored vectors are learned in training and do not depend on the sentence. The sentence only chooses which of a word's few vectors to use.
+**Keep the value matrix in the later layers.** By then each token carries information gathered from the sentence, such as which words came before it. A fixed table cannot hold that.
 
 - **Good at:** memorizing many rare facts, and copying the exact token.
 - **Bad at:** information that comes from the context, which still needs the value matrix.
@@ -22,13 +20,19 @@ Each layer has its own table. The stored vectors are learned in training and do 
 
 ## The core idea
 
-When a token looks back at earlier tokens, attention copies a vector from each earlier token. That vector is called the **value**.
+Attention lets each token gather information from earlier tokens.
 
-Normally the value comes from the **value matrix**: it turns what the model knows about the earlier token at that moment into the vector that gets copied.
+Each earlier token offers one vector, called its **value**.
 
-Recent models (modded-nanogpt, nanochat) add a **value embedding**: a learned table with one vector per token in the vocabulary, added to the value. It works like a dictionary: look up the token, get its stored vector.
+The current token (the latest one) takes a weighted mix of these values. Earlier tokens it pays more attention to get more weight.
 
-My question: if the value embedding is good enough, is the value matrix needed at all?
+Normally the **value matrix** makes each value, from what the model knows about that earlier token in its sentence.
+
+Recent models (modded-nanogpt, nanochat) also add a **value embedding** on top: a learned table with one stored vector per token, like a dictionary.
+
+**In some layers, the value matrix can be replaced by a value embedding** with 4 stored vectors per token.
+
+Each layer has its own table. The stored vectors are learned in training and do not depend on the sentence. The sentence only chooses which of the token's 4 vectors to use.
 
 ## More
 
