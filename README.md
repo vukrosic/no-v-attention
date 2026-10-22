@@ -1,6 +1,16 @@
 # Delete attention value matrices from your LLM (from some layers)
 
-**In attention, the value matrix turns each earlier token into the vector that gets copied. I removed it. Instead, each token keeps a few learned value vectors, and the context picks which one to use. The model trained to a lower loss than with the value matrix, and each stored vector learned to hold a different kind of information about its token.**
+**Attention lets each token gather information from earlier tokens.**
+
+Each earlier token offers one vector, called its **value**.
+
+The token takes a weighted mix of these values. Earlier tokens it pays more attention to get more weight.
+
+Normally the **value matrix** makes each value, from what the model knows about that earlier token in its sentence.
+
+**In some layers, the value matrix can be replaced by a value embedding.** This is a learned table, like a dictionary, with a few stored vectors for every word in the vocabulary.
+
+Each layer has its own table. The stored vectors are learned in training and do not depend on the sentence. The sentence only chooses which of a word's few vectors to use.
 
 - **Good at:** memorizing many rare facts, and copying the exact token.
 - **Bad at:** information that comes from the context, which still needs the value matrix.
