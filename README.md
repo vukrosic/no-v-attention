@@ -4,6 +4,24 @@
 
 ![Value embedding with context-chosen rows vs the value matrix](main_result.png)
 
+## Contents
+
+- [The core idea](#the-core-idea)
+- [What I changed](#what-i-changed)
+  - [Result](#result)
+  - [Why it works: choosing the row matters](#why-it-works-choosing-the-row-matters)
+  - [With a mixture of experts](#with-a-mixture-of-experts)
+- [What each slot learns](#what-each-slot-learns)
+  - [First layer vs second layer](#first-layer-vs-second-layer)
+- [Where it stops working](#where-it-stops-working)
+  - [Wider models](#wider-models)
+  - [Is it about room for facts?](#is-it-about-room-for-facts)
+  - [A second gain: sorting and lookup](#a-second-gain-sorting-and-lookup)
+  - [Guess for large language models](#guess-for-large-language-models)
+- [Is this new?](#is-this-new)
+- [Setup](#setup)
+- [More detail](#more-detail)
+
 ## The core idea
 
 When a token looks back at earlier tokens, attention copies a vector from each earlier token. That vector is called the **value**.
@@ -20,9 +38,15 @@ My question: if the value embedding is good enough, is the value matrix needed a
 2. **Slots:** each token gets 4 rows in the value embedding instead of 1, and the layer input picks which row to use. The MoME paper calls these rows slots.
 3. **No value matrix:** the value is now only the chosen value-embedding row.
 
+### Result
+
 All three together give the lowest loss in the chart above: 0.996 against 1.084 for normal attention, better on all 4 seeds.
 
-The control shows why it works. When the 4 slots are averaged evenly instead of chosen, half the gain is gone, so the gain comes from choosing a row, not from having more weights.
+### Why it works: choosing the row matters
+
+When the 4 slots are averaged evenly instead of chosen, half the gain is gone, so the gain comes from choosing a row, not from having more weights.
+
+### With a mixture of experts
 
 I also tried a model whose feed-forward part is a mixture of experts. The slots helped there too (1.389 → 1.315, all 4 seeds). Spending the same number of extra weights on 3 more experts gave nothing (1.400).
 
@@ -41,11 +65,19 @@ Each slot holds a different kind of information about a token:
 
 So the task decides the slot. A token that is copied in one sentence and asked about in another keeps both answers ready.
 
+### First layer vs second layer
+
 The first layer cannot do this. Its input is only the token, before any context is read, so its slot choice is fixed per token. Slots in the second layer alone keep almost all the gain with half the extra weights.
 
 ## Where it stops working
 
+### Wider models
+
 ![The gain shrinks as the model gets wider](width.png)
+
+The gain shrinks as the model gets wider, and at width 256 with our usual 64 facts it is gone. When I gave the width-256 model 256 facts, the slots helped with facts again. With the value matrix removed, though, the width-256 model got worse at key → value lookup in 2 of 4 runs.
+
+### Is it about room for facts?
 
 Why does it shrink? My explanation was that the slots give each token extra room to store facts, and a wider model already has enough room.
 
@@ -55,11 +87,11 @@ To test that, I changed how many facts the model must memorize.
 
 With few facts, the slots do not help with facts at all. With many facts, they help a lot. So the extra room for facts is real.
 
-But there is a second gain that has nothing to do with facts: even with few facts, the slots help with sorting and with "look up a key, then recall it". Both need a clean copy of the token, which is what one slot holds.
+### A second gain: sorting and lookup
 
-At width 256 with our usual 64 facts, both gains are gone.
+There is a second gain that has nothing to do with facts: even with few facts, the slots help with sorting and with "look up a key, then recall it". Both need a clean copy of the token, which is what one slot holds.
 
-When I gave the width-256 model 256 facts, slots helped with facts again. Without the value matrix, though, it got worse at key → value lookup in 2 of 4 runs.
+### Guess for large language models
 
 **My guess for large models: keep the value matrix and add context-chosen slots, only in layers after the first.** Width 256 has only 2 seeds, so this is not settled.
 
@@ -90,7 +122,7 @@ A small transformer trained for about 5 seconds on a MacBook CPU. Like a languag
 - counting;
 - multi-step tasks, such as "look up a key, then recall that subject's fact".
 
----
+## More detail
 
 - [RESULTS.md](RESULTS.md) has every number, all controls and the command for each run.
 - [toy/](toy/) has the model and task code.
