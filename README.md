@@ -4,7 +4,7 @@
 
 Each earlier token offers one vector, called its **value**.
 
-The token takes a weighted mix of these values. Earlier tokens it pays more attention to get more weight.
+The current token (the latest one) takes a weighted mix of these values. Earlier tokens it pays more attention to get more weight.
 
 Normally the **value matrix** makes each value, from what the model knows about that earlier token in its sentence.
 
